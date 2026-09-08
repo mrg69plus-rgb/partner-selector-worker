@@ -16,6 +16,7 @@ export default {
 
     if (request.method !== "POST") {
       return new Response("OK", {
+        status: 200,
         headers: corsHeaders
       });
     }
@@ -23,15 +24,13 @@ export default {
     try {
       const data = await request.json();
 
-      const selected =
-        Array.isArray(data.selected)
-          ? data.selected
-          : [];
+      const selected = Array.isArray(data.selected)
+        ? data.selected
+        : [];
 
-      const custom =
-        Array.isArray(data.custom)
-          ? data.custom
-          : [];
+      const custom = Array.isArray(data.custom)
+        ? data.custom
+        : [];
 
       const user = data.telegramUser;
 
@@ -79,16 +78,16 @@ export default {
         }
       );
 
+      const telegramResult = await telegramResponse.text();
+
+      console.log("Telegram status:", telegramResponse.status);
+      console.log("Telegram response:", telegramResult);
+
       if (!telegramResponse.ok) {
-        const errorText =
-          await telegramResponse.text();
-
-        console.error(errorText);
-
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Telegram error"
+            telegramStatus: telegramResponse.status
           }),
           {
             status: 500,
@@ -115,11 +114,12 @@ export default {
 
     } catch (error) {
 
-      console.error(error);
+      console.error("Worker error:", error);
 
       return new Response(
         JSON.stringify({
-          success: false
+          success: false,
+          error: error.message
         }),
         {
           status: 500,
