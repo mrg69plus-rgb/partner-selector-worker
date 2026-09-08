@@ -1,13 +1,60 @@
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "https://mrg69plus-rgb.github.io",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 export default {
   async fetch(request, env) {
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders
+      });
+    }
+
+    if (request.method !== "POST") {
+      return new Response("Method Not Allowed", {
+        status: 405,
+        headers: corsHeaders
+      });
+    }
+
     try {
-      const getMeResponse = await fetch(
-        `https://api.telegram.org/bot${env.BOT_TOKEN}/getMe`
-      );
+      const data = await request.json();
 
-      const getMeResult = await getMeResponse.json();
+      const selected = Array.isArray(data.selected)
+        ? data.selected
+        : [];
 
-      const sendMessageResponse = await fetch(
+      const custom = Array.isArray(data.custom)
+        ? data.custom
+        : [];
+
+      let message = "📋 انتخاب‌های جدید\n\n";
+
+      if (selected.length > 0) {
+        message += "🔹 گزینه‌های انتخاب‌شده:\n";
+
+        selected.forEach((item, index) => {
+          message += `${index + 1}. ${item}\n`;
+        });
+      }
+
+      if (custom.length > 0) {
+        message += "\n✏️ گزینه‌های سفارشی:\n";
+
+        custom.forEach((item, index) => {
+          message += `${index + 1}. ${item}\n`;
+        });
+      }
+
+      if (selected.length === 0 && custom.length === 0) {
+        message += "هیچ گزینه‌ای انتخاب نشده.";
+      }
+
+      const telegramResponse = await fetch(
         `https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`,
         {
           method: "POST",
@@ -16,34 +63,56 @@ export default {
           },
           body: JSON.stringify({
             chat_id: env.OWNER_CHAT_ID,
-            text: "🧪 تست اتصال Worker به Telegram"
+            text: message
           })
         }
       );
 
-      const sendMessageResult = await sendMessageResponse.json();
+      const telegramResult = await telegramResponse.json();
+
+      if (!telegramResponse.ok || !telegramResult.ok) {
+        console.log("Telegram error:", telegramResult);
+
+        return new Response(
+          JSON.stringify({
+            success: false
+          }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          }
+        );
+      }
 
       return new Response(
         JSON.stringify({
-          getMe: getMeResult,
-          sendMessage: sendMessageResult
-        }, null, 2),
+          success: true
+        }),
         {
+          status: 200,
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...corsHeaders
           }
         }
       );
 
     } catch (error) {
+
+      console.log("Worker error:", error.message);
+
       return new Response(
         JSON.stringify({
-          error: error.message
-        }, null, 2),
+          success: false
+        }),
         {
           status: 500,
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...corsHeaders
           }
         }
       );
